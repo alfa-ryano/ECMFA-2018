@@ -116,7 +116,7 @@ This paper proposes and evaluates an efficient approach for loading models store
     
     \section{Introduction}
     \label{sec:introduction}
-    Conventional approaches for file-based model persistence in metamodelling architectures such as MOF \cite{omg2018mof} and EMF \cite{steinberg2008emf} are state-based -- saving the current state of a model.  In these approaches,  version control and change detection are delegated to external systems.  State-based persistence is computationally expensive, as a whole model must be saved and loaded; this particularly affects large models and collaborative developments.
+    Conventional approaches for file-based model persistence in metamodelling architectures such as MOF \cite{omg2018mof} and EMF \cite{steinberg2008emf} are state-based -- saving the current state of a model.  In these approaches,  version control and change detection are delegated to external systems.  State-based persistence is computationally expensive, as a whole model must be saved and loaded; this can particularly affect large models and collaborative developments.
     
     In \cite{yohannis2017turning}, we proposed change-based persistence (CBP), an approach that persists the full sequence of \emph{changes} made to a model instead of persisting the state. Compared to state-based approaches, CBP supports fast detection of changes, which can speed up model comparison and merging, as well as fast incremental model validation and transformation \cite{rath2012derived,ogunyomi2015property}. However, saving the change history of a model results in large, and ever-growing, CBP files.  Loading times are also significant, as the loading process has to reconstruct a model's current state from its history \cite{yohannis2017turning}.   This paper proposes and evaluates an approach that reduces CBP model loading time by avoiding the replaying of historical changes that have no impact on the final state of the model.
     
@@ -293,9 +293,9 @@ remove n2 from p.children //children=[n1,n3]
 
     To create the Ignore List for the Listing \ref{lst:add_move_reference}, we can deduce that $children$.$add$. $lines$ = \{\{5, $n1$\}, \{6, $n2$\} \{7, $n3$\}\} (5 is the line number and $n1$ is the value) and $children$.$remove$.$lines$ = \{\{8, $n1$\}\}. Since $n2$ is removed from its containing feature (line 8), then executing its preceding add and remove events is unnecessary. Note that we retain the $create$ event (line 3) as $n2$ has not been deleted from the model -- only removed from its containing feature. We can iterate through the add and move structures to identify the events on $n2$ that should be removed, resulting in the $ignoreList$ = \{6, 8\}.
     
-    Listing \ref{lst:add_remove_move_reference} shows an example with a $move$ event. A $move$ event is inserted at line 8 shifted the $remove$ event of $n2$ to line 9. With the introduction of this $move$ event, we now have the $children$.$add$.$lines$ = \{\{5, $n1$\}, \{6, $n2$\} \{7, $n3$\}\}, $children$.$move$.$lines$ = \{\{8, $n1$\}\}, and $children$.$remove$.$lines$ = \{\{9, $n2$\}\}. In the final state of the model, the $children$ should have the $n1$ and $n3$ in order, $children$ = [n1, n3] (The commented parts of Listing \ref{lst:add_remove_move_reference} show the end states of $children$ after each event).  
+    Listing \ref{lst:add_remove_move_reference} shows an example with a $move$ event\footnote{The commented parts  show the end states of $children$ after each event}. A $move$ event is inserted at line 8 shifted the $remove$ event of $n2$ to line 9. With the introduction of this $move$ event, we now have the $children$.$add$.$lines$ = \{\{5, $n1$\}, \{6, $n2$\} \{7, $n3$\}\}, $children$.$move$.$lines$ = \{\{8, $n1$\}\}, and $children$.$remove$.$lines$ = \{\{9, $n2$\}\}. In the final state of the model, the $children$ should have the $n1$ and $n3$ in order, $children$ = [n1, n3].  
     
-    However, executing the previous strategy naively leads to an error final state. Using $ignoreList$ = \{6, 8\} produced by the naive strategy leads to a different order of $n1$ and $n3$ in the final state of the model where $children$ = [n3, n1] as shown by the naive optimised CBP in Listing \ref{lst:naive_add_remove_move_reference}. To prevent this problem, *$IsMoved$ flags in Figure\ref{fig:object_history} is used to sign  features and elements if they have been moved -- the flags are set to $true$. If an element's *$IsMoved$ flag is true then all of its line numbers related to $add$, $move$, $remove$ events cannot be put into the $ignoreList$. The flags are set to $false$ if the feature is empty. 
+    However, executing the previous strategy naively leads to an error final state. Using $ignoreList$ = \{6, 8\} produced by the naive strategy leads to a different order of $n1$ and $n3$ in the final state of the model where $children$ = [n3, n1] as shown by the naive optimised CBP in Listing \ref{lst:naive_add_remove_move_reference}. To prevent this problem, *$IsMoved$ flags in Figure \ref{fig:object_history} is used to sign  features and elements if they have been moved -- the flags are set to $true$. If an element's *$IsMoved$ flag is true then all of its line numbers related to $add$, $move$, $remove$ events cannot be put into the $ignoreList$. The flags are set to $false$ if the feature is empty. 
 
 \begin{lstlisting}[style=eol,caption={A naive optimised CBP representation of original CBP representation in Listing \ref{lst:add_remove_move_reference} .},label=lst:naive_add_remove_move_reference]
 create p of Node            // children = []
@@ -312,7 +312,7 @@ move 0 to 1 in p.children   // children = [n3, n1]
     
     When an element is deleted, it is completely removed from the model. Therefore, all previous events ($create$, $set$, $unset$, $move$, $add$, $remove$, $delete$) on that element can be ignored, along with all events on the element's features. For example, when node \emph{n3} in Listing \ref{lst:cbpmodel} is deleted, the events in lines 5-6 and 8-10 are superseded. The optimised change-based representation of Listing \ref{lst:cbpmodel} is presented in Listing \ref{lst:cbpmodel_optimised}.
     
-    \begin{lstlisting}[style=eol,caption={Change-based representation of the model in Figure \ref{fig:initial_model} after removal of node \emph{n3}.},label=lst:cbpmodel_optimised]
+    \begin{lstlisting}[style=eol,caption={Change-based representation of the model in Figure \ref{fig:initial_model} after removal of node $n3$.},label=lst:cbpmodel_optimised]
 create n1 of Node
 set n1.name to "A"
 create n2 of Node
@@ -331,7 +331,7 @@ add n2 to n1.children
     
     Using the synthetic models, we performed performance evaluation on loading time, saving time, and memory footprints for both loading and saving. To compare the loading time, we ran the optimised and original (baseline) CBP algorithms to reconstruct the current state of each of the three models (The results are shown in Figure \ref{fig:loadtime}). As discussed in Section \ref{sec:loading_time_optimisation}, optimised CBP also does extra work when saving the changes to a model, in order to save time (relative to original CBP) when loading a model. To analyse the performance effect of optimisation activities, we, therefore, compared the overall time required to save a new version of the models described above, after one single change has been made (The results are shown in Figure \ref{fig:savetime}). we also compare the memory footprints for both loading and saving since the optimised CBP approach also requires the maintenance of an additional in-memory data structure that keeps track of element and feature editing histories (See Figure \ref{fig:loadmemory} and \ref{fig:savememory} for the results). 
     
-    For each combination of dimensions (loading time, saving time, loading memory footprint, saving memory footprint),  persistence types (original CBP, optimised CBP, and XMI), and cases (BPMN2, Epsilon, and United States), we performed measurement 22 times. The results of the measurement enabled us to perform the Welch's t-test \cite{welch1947ttest} to find the significance of the comparisons for each case. We chose $p$-$value$ $<$ .001 as the significance level. If any t-test' $p$-$value$ fell into this criterion, we rejected the null hypothesis -- the $means$ of the compared persistence types are equal ($H_0$) -- and accepted the alternative hypothesis -- the $means$ of the compared persistence types are not equal ($H_1$).
+    For each combination of dimensions (loading time, saving time, loading memory footprint, saving memory footprint),  persistence types (original CBP, optimised CBP, and XMI), and cases (BPMN2, Epsilon, and United States), we performed measurement 22 times. The results of the measurement enabled us to perform the Welch's t-test \cite{welch1947ttest} to find the significance of the comparisons for each case. We used a significance level of 5\%. If t-test' $p$-$value$ $<$ 0.05, we rejected the null hypothesis -- the $means$ of the compared persistence types are equal ($H_0$) -- and accepted the alternative hypothesis -- the $means$ of the compared persistence types are not equal ($H_1$).
     
      For loading and saving time, we measured the delta time required to complete the loading and saving. For memory footprint, we measured the delta of memory used before and after loading and saving completes. We also collected some data description to characterise our cases. The results are presented in the following subsections.
 
@@ -359,7 +359,7 @@ add n2 to n1.children
     \end{tabular}
 \end{table}
 
-Table \ref{table:data_description} summarises events, elements and saved versions for the Epsilon, BPMN2, and Wikipedia cases. $Total Events$ is the numbers of events that were produced by our approach in generating a change-based model for each case.  $Ignored Events$ is the number of superseded events that do not need to be replayed when reloading the models. $Elements$ is the number of elements contained in each model. $Total Versions$ is the number of commits/revisions made to the cases, taken from the git repositories or Wikipedia at the time this evaluation performed. $Processed versions$ is the number of commits/revisions that were processed to produce change-based models: since the comparison between versions takes considerable time, not all versions are processed here.
+Table \ref{table:data_description} summarises events, elements and saved versions for the Epsilon, BPMN2, and Wikipedia cases. $Total$ $Events$ is the numbers of events that were produced by our approach in generating a change-based model for each case.  $Ignored$ $Events$ is the number of superseded events that do not need to be replayed when reloading the models. $Elements$ is the number of elements contained in each model. $Total$ $Versions$ is the number of commits/revisions made to the cases, taken from the git repositories or Wikipedia at the time this evaluation performed. $Processed$ $Versions$ is the number of commits/revisions that were processed to produce change-based models: since the comparison between versions takes considerable time, not all versions are processed here.
 
 \vspace{-10pt}
 \subsection{Model Loading Time}
@@ -380,32 +380,32 @@ Table \ref{table:data_description} summarises events, elements and saved version
          % BPMN2 Load Time
          Group & Mean & SD & Comparison & t  & df & p-value \\  
          \hline 
-         \multicolumn{3}{|c|}{\textbf{BPMN2 Load Time}} & \multicolumn{4}{c|}{\textbf{BPMN2 Load Time}} \\ 
-         CBP & 5.81 & 0.08 & CBP vs XMI & 315.95    &21.46 & $<$ 0.001 \\  
-         OCBP & 3.02 & 0.13 & CBP vs OCBP & 87.67 & 35.10  & $<$ 0.001 \\  
-         XMI & 0.47 & 0.47 & OCBP vs XMI & 93.86    & 21.18  & $<$ 0.001 \\ 
+         \multicolumn{3}{|c|}{\textbf{BPMN2 Load Time ($s$)}} & \multicolumn{4}{c|}{\textbf{BPMN2 Load Time}} \\ 
+         CBP & 5.81 & 0.08 & CBP vs XMI & 315.95    &21.46 & $<$ 0.05 \\  
+         OCBP & 3.02 & 0.13 & CBP vs OCBP & 87.67 & 35.10  & $<$ 0.05 \\  
+         XMI & 0.47 & 0.47 & OCBP vs XMI & 93.86    & 21.18  & $<$ 0.05 \\ 
          \hline 
          
          % EPSILON Load Time
-         \multicolumn{3}{|c|}{\textbf{Epsilon Load Time}} & \multicolumn{4}{c|}{\textbf{Epsilon Load Time}} \\
-         CBP & 16.60    & 0.23 &  CBP vs XMI & 324.18   &22.78 & $<$ 0.001 \\
-         OCBP &  8.28  &  0.09 & CBP vs OCBP & 160.06 & 27.48 & $<$ 0.001 \\  
-         XMI & 31.54   & 0.05 & OCBP vs XMI & 354.52   &42.06  & $<$ 0.001 \\ 
+         \multicolumn{3}{|c|}{\textbf{Epsilon Load Time ($s$)}} & \multicolumn{4}{c|}{\textbf{Epsilon Load Time}} \\
+         CBP & 16.60    & 0.23 &  CBP vs XMI & 324.18   &22.78 & $<$ 0.05 \\
+         OCBP &  8.28  &  0.09 & CBP vs OCBP & 160.06 & 27.48 & $<$ 0.05 \\  
+         XMI & 31.54   & 0.05 & OCBP vs XMI & 354.52   &42.06  & $<$ 0.05 \\ 
          \hline 
          
          % WIKIPEDIA Load Time
-         \multicolumn{3}{|c|}{\textbf{US Load Time}} & \multicolumn{4}{c|}{\textbf{United States Load Time}} \\
-         CBP & 34.23   & 0.145 & CBP vs XMI & 1,110.10   &21.00 & $<$ 0.001 \\ 
-         OCBP & 26.14  & 1.583 & CBP vs OCBP &  23.90 &21.35 & $<$ 0.001 \\ 
-         XMI &  0.02  & 0.001 & OCBP vs XMI & 77.37   & 21.00 & $<$ 0.001 \\ 
+         \multicolumn{3}{|c|}{\textbf{US Load Time ($s$)}} & \multicolumn{4}{c|}{\textbf{United States Load Time}} \\
+         CBP & 34.23   & 0.145 & CBP vs XMI & 1,110.10   &21.00 & $<$ 0.05 \\ 
+         OCBP & 26.14  & 1.583 & CBP vs OCBP &  23.90 &21.35 & $<$ 0.05 \\ 
+         XMI &  0.02  & 0.001 & OCBP vs XMI & 77.37   & 21.00 & $<$ 0.05 \\ 
          \hline
      \end{tabular}
      \justify
-     $Mean$ = average, $SD$ = standard deviation, $t$ = t-test's $t$-$value$, $df$ = degree of freedom, $p$-$value$ = significance, the unit is seconds
+     $Mean$ = average, $SD$ = standard deviation, $t$ = t-test's $t$-$value$, $df$ = degree of freedom, $p$-$value$ = significance, $s$ = the unit is seconds
  \end{table}
  
   
-These loading times show a considerable time saving for optimised CBP: BPMN2 was 48.02\% faster, Epsilon 50.12\% faster, and the United States page 23.63\% faster than in the original CPB implementation (all optimised CBP's $means$ are  smaller than all original CBP's $means$), which has a positive correlation to the number of ignored events. All the t-test results also show that loading times for all the persistence types are significantly different (all the $p$-$values$ are less than  $<$ 0.001). 
+These loading times show a considerable time saving for optimised CBP: BPMN2 was 48.02\% faster, Epsilon 50.12\% faster, and the United States page 23.63\% faster than in the original CPB implementation (all optimised CBP's $means$ are  smaller than all original CBP's $means$), which has a positive correlation to the number of ignored events. All the t-test results also show that loading times for all the persistence types are significantly different (all the $p$-$values$ $<$ 0.05). 
 
 For reference, we also compare CBP loading with the execution time for loading the equivalent state-based model in XMI. Figure \ref{fig:loadtime} shows that, even with the improvements delivered by the new algorithm, loading change-based models is still significantly slower than loading a state-based model (all XMI's means are smaller than other persistence types' means).
 
@@ -454,33 +454,33 @@ For reference, we also compare CBP loading with the execution time for loading t
          % BPMN2 Save Time
          Group & Mean & SD & Comparison & t  & df & p-value \\
          \hline 
-         \multicolumn{3}{|c|}{\textbf{BPMN2 Save Time}} & \multicolumn{4}{c|}{\textbf{BPMN2 Save Time}}\\
-         CBP & 0.00097    & 123e-5 & CBP vs XMI &  -175.58    & 22.01 & $<$ 0.001 \\  
+         \multicolumn{3}{|c|}{\textbf{BPMN2 Save Time ($s$)}} & \multicolumn{4}{c|}{\textbf{BPMN2 Save Time}}\\
+         CBP & 0.00097    & 123e-5 & CBP vs XMI &  -175.58    & 22.01 & $<$ 0.05 \\  
          OCBP & 0.00081   & 12e-5 & CBP vs OCBP & 0.62 & 21.38  & 0.54 \\  
-         XMI & 0.30122   & 793e-5 & OCBP vs XMI & -177.76    & 21.01  & $<$ 0.001 \\ 
+         XMI & 0.30122   & 793e-5 & OCBP vs XMI & -177.76    & 21.01  & $<$ 0.05 \\ 
          \hline 
          
          % EPSILON Save Time
-         \multicolumn{3}{|c|}{\textbf{Epsilon Save Time}} & \multicolumn{4}{c|}{\textbf{Epsilon Save Time}}\\
-         CBP & 0.00069    & 3.4e-5 &  CBP vs XMI & -6.01   &21.00 & $<$ 0.001 \\
-         OCBP & 0.00080   & 8.0e-5 & CBP vs OCBP & 160.06 & 28.24 & $<$ 0.001 \\  
-         XMI & 0.40025   & 595e-5 & OCBP vs XMI & -314.80  & 21.01  & $<$ 0.001 \\ 
+         \multicolumn{3}{|c|}{\textbf{Epsilon Save Time ($s$)}} & \multicolumn{4}{c|}{\textbf{Epsilon Save Time}}\\
+         CBP & 0.00069    & 3.4e-5 &  CBP vs XMI & -6.01   &21.00 & $<$ 0.05 \\
+         OCBP & 0.00080   & 8.0e-5 & CBP vs OCBP & 160.06 & 28.24 & $<$ 0.05 \\  
+         XMI & 0.40025   & 595e-5 & OCBP vs XMI & -314.80  & 21.01  & $<$ 0.05 \\ 
          \hline 
          
          % WIKIPEDIA Save Time
-         \multicolumn{3}{|c|}{\textbf{US Save Time}} & \multicolumn{4}{c|}{\textbf{United States Save Time}}\\
-         CBP & 0.00071     & 4.9e-5 & CBP vs XMI &  -46.19   & 21.08 & $<$ 0.001 \\ 
-         OCBP &0.00075   &  4.1e-5 & CBP vs OCBP &   -3.48 & 40.77 & 0.0012 \\ 
-         XMI &  0.01195   & 114e-5 & OCBP vs XMI &  -46.01  & 21.06 & $<$ 0.001 \\ 
+         \multicolumn{3}{|c|}{\textbf{US Save Time ($s$)}} & \multicolumn{4}{c|}{\textbf{United States Save Time}}\\
+         CBP & 0.00071     & 4.9e-5 & CBP vs XMI &  -46.19   & 21.08 & $<$ 0.05 \\ 
+         OCBP &0.00075   &  4.1e-5 & CBP vs OCBP &   -3.48 & 40.77 & $<$ 0.05 \\ 
+         XMI &  0.01195   & 114e-5 & OCBP vs XMI &  -46.01  & 21.06 & $<$ 0.05 \\ 
          \hline
      \end{tabular}
      \justify
-     $Mean$ = average, $SD$ = standard deviation, $t$ = t-test's $t$-$value$, $df$ = degree of freedom, $p$-$value$ = significance, the unit is seconds
+     $Mean$ = average, $SD$ = standard deviation, $t$ = t-test's $t$-$value$, $df$ = degree of freedom, $p$-$value$ = significance, $s$ = the unit is seconds
  \end{table}
   
    
     
-    As shown in Table \ref{table:ttest_results_savetime} and Figure \ref{fig:savetime}, the performance of the two CBP implementations is not very different. Even though the BPMN2 and Wikipedia cases have $p$-$values$ $>$ 0.001, the Epsilon case has $p$-$value$ $<$ 0.001 and the $means$ of their original CBP and optimised CBP are very close. This indicates that the cost of the extra work in the optimised CBP algorithm is negligible. On the other hand, both CBP implementations are significantly faster at saving changes than state-based XMI (The $means$ of both CBP implementations are smaller than XMI's $means$, and both CBP implementations have $p$-$values$ $<$ 0.001 when compared to XMI). This is expected, as the CBP implementations only need append last change to the existing model file (their performance is thus relative to the number of changes since the last save), while the XMI implementation needs to reconstruct an XML document for the entire state of the model, and replaces the contents of the model file every time (and hence its performance is relative to the size of the entire model). 
+    As shown in Table \ref{table:ttest_results_savetime} and Figure \ref{fig:savetime}, the performance of the two CBP implementations is not very different. Since the significance level is 5\%, only the BPMN2 case that fails. However, the difference between the $means$ of its original CBP (0.97 ms) and optimised CBP (0.81 ms) can be considered small. This indicates that the cost of the extra work in the optimised CBP algorithm is negligible. On the other hand, both CBP implementations are significantly faster at saving changes than state-based XMI (The $means$ of both CBP implementations are smaller than XMI's $means$, and both CBP implementations have $p$-$values$ $<$ 0.05 when compared to XMI). This is expected, as the CBP implementations only need append last change to the existing model file (their performance is thus relative to the number of changes since the last save), while the XMI implementation needs to reconstruct an XML document for the entire state of the model, and replaces the contents of the model file every time (and hence its performance is relative to the size of the entire model). 
     
      \begin{figure}[t]
         \begin{subfigure}{0.325\textwidth}
@@ -549,28 +549,28 @@ For reference, we also compare CBP loading with the execution time for loading t
             % BPMN2 Load Memory
             Group & Mean & SD & Comparison & t  & df & p-value \\
             \hline 
-            \multicolumn{3}{|c|}{\textbf{BPMN2 Load Memory}} & \multicolumn{4}{c|}{\textbf{BPMN2 Load Memory}} \\
-            CBP & 9.76     & 76.0e-4 & CBP vs XMI &  4,392.5   & 21.22 & $<$ 0.001 \\  
-            OCBP & 22.36   & 0.015 & CBP vs OCBP & -3,695.7 & 32.28  & $<$ 0.001 \\  
-            XMI &  2.63   & 5.5e-4 & OCBP vs XMI &  6,572.4    & 21.06  & $<$ 0.001 \\ 
+            \multicolumn{3}{|c|}{\textbf{BPMN2 Load Memory ($M$)}} & \multicolumn{4}{c|}{\textbf{BPMN2 Load Memory}} \\
+            CBP & 9.76     & 76.0e-4 & CBP vs XMI &  4,392.5   & 21.22 & $<$ 0.05 \\  
+            OCBP & 22.36   & 0.015 & CBP vs OCBP & -3,695.7 & 32.28  & $<$ 0.05 \\  
+            XMI &  2.63   & 5.5e-4 & OCBP vs XMI &  6,572.4    & 21.06  & $<$ 0.05 \\ 
             \hline 
             
             % EPSILON Load Memory
-            \multicolumn{3}{|c|}{\textbf{Epsilon Load Memory}} & \multicolumn{4}{c|}{\textbf{Epsilon Load Memory}} \\
-            CBP &15.74    & 1.248 &  CBP vs XMI & 28.16   &  41.99 & $<$ 0.001 \\
-            OCBP & 43.15   & 0.056 & CBP vs OCBP & -102.9 &21.08 & $<$ 0.001 \\  
-            XMI & 5.05   & 1.271 & OCBP vs XMI & 140.49  & 21.08  & $<$ 0.001 \\ 
+            \multicolumn{3}{|c|}{\textbf{Epsilon Load Memory ($M$)}} & \multicolumn{4}{c|}{\textbf{Epsilon Load Memory}} \\
+            CBP &15.74    & 1.248 &  CBP vs XMI & 28.16   &  41.99 & $<$ 0.05 \\
+            OCBP & 43.15   & 0.056 & CBP vs OCBP & -102.9 &21.08 & $<$ 0.05 \\  
+            XMI & 5.05   & 1.271 & OCBP vs XMI & 140.49  & 21.08  & $<$ 0.05 \\ 
             \hline 
             
             % WIKIPEDIA Load Memory
-            \multicolumn{3}{|c|}{\textbf{US Load Memory}} & \multicolumn{4}{c|}{\textbf{United States Load Memory}} \\
-            CBP & 2.29  & 2.4e-4 & CBP vs XMI &   4,523.5   & 25.16 & $<$ 0.001 \\ 
-            OCBP & 126.48 & 0.29 & CBP vs OCBP &   -2,009.3 & 21.00 & $<$ 0.001 \\ 
-            XMI &  1.52  & 7.6e-4 & OCBP vs XMI &  2,021.8  & 21.00 & $<$ 0.001 \\ 
+            \multicolumn{3}{|c|}{\textbf{US Load Memory ($M$)}} & \multicolumn{4}{c|}{\textbf{United States Load Memory}} \\
+            CBP & 2.29  & 2.4e-4 & CBP vs XMI &   4,523.5   & 25.16 & $<$ 0.05 \\ 
+            OCBP & 126.48 & 0.29 & CBP vs OCBP &   -2,009.3 & 21.00 & $<$ 0.05 \\ 
+            XMI &  1.52  & 7.6e-4 & OCBP vs XMI &  2,021.8  & 21.00 & $<$ 0.05 \\ 
             \hline
         \end{tabular}
         \justify
-        $Mean$ = average, $SD$ = standard deviation, $t$ = t-test's $t$-$value$, $df$ = degree of freedom, $p$-$value$ = significance, the unit is megabytes
+        $Mean$ = average, $SD$ = standard deviation, $t$ = t-test's $t$-$value$, $df$ = degree of freedom, $p$-$value$ = significance, $M$ = the unit is megabytes
     \end{table}
 
     \vspace{-10pt}
@@ -611,33 +611,33 @@ For reference, we also compare CBP loading with the execution time for loading t
            % BPMN2 Save Memory
            Group & Mean & SD & Comparison & t  & df & p-value \\
            \hline 
-           \multicolumn{3}{|c|}{\textbf{BPMN2 Save Memory}} & \multicolumn{4}{c|}{\textbf{BPMN2 Save Memory}} \\
-           CBP &0.0023    & 6.3e-5 & CBP vs XMI &  -489,170    & 41.49 & $<$ 0.001 \\  
-           OCBP &0.0029    & 80e-5 & CBP vs OCBP & -3.22 & 21.26 & 0.004 \\  
-           XMI & 8.84   & 5.6e-5 & OCBP vs XMI & -51,180    &  21.21  & $<$ 0.001 \\ 
+           \multicolumn{3}{|c|}{\textbf{BPMN2 Save Memory ($M$)}} & \multicolumn{4}{c|}{\textbf{BPMN2 Save Memory}} \\
+           CBP &0.0023    & 6.3e-5 & CBP vs XMI &  -489,170    & 41.49 & $<$ 0.05 \\  
+           OCBP &0.0029    & 80e-5 & CBP vs OCBP & -3.22 & 21.26 & $<$ 0.05 \\
+           XMI & 8.84   & 5.6e-5 & OCBP vs XMI & -51,180    &  21.21  & $<$ 0.05 \\ 
            \hline 
            
            % EPSILON Save Memory
-           \multicolumn{3}{|c|}{\textbf{Epsilon Save Memory}} & \multicolumn{4}{c|}{\textbf{Epsilon Save Memory}}\\
-           CBP & 0.0025    & 18.8e-6 &  CBP vs XMI & -4.3e\texttt{+}6   & 21.00 & $<$ 0.001 \\
-           OCBP & 0.0031    & 279.9e-6 & CBP vs OCBP & -10.131 & 21.19 & $<$ 0.001 \\ %1.41e-09 \\  
-           XMI & 17.61   & 2.4e-6 & OCBP vs XMI & -295,090  &21.00  & $<$ 0.001 \\ 
+           \multicolumn{3}{|c|}{\textbf{Epsilon Save Memory ($M$)}} & \multicolumn{4}{c|}{\textbf{Epsilon Save Memory}}\\
+           CBP & 0.0025    & 18.8e-6 &  CBP vs XMI & -4.3e\texttt{+}6   & 21.00 & $<$ 0.05 \\
+           OCBP & 0.0031    & 279.9e-6 & CBP vs OCBP & -10.131 & 21.19 & $<$ 0.05 \\ %1.41e-09 \\  
+           XMI & 17.61   & 2.4e-6 & OCBP vs XMI & -295,090  &21.00  & $<$ 0.05 \\ 
            \hline 
            
            % WIKIPEDIA Save Memory
-           \multicolumn{3}{|c|}{\textbf{US Save Memory}} & \multicolumn{4}{c|}{\textbf{United States Save Memory}} \\
-           CBP & 0.0025  &1.9e-5 & CBP vs XMI &  -391,970   & 40.52 & $<$ 0.001 \\ 
+           \multicolumn{3}{|c|}{\textbf{US Save Memory ($M$)}} & \multicolumn{4}{c|}{\textbf{United States Save Memory}} \\
+           CBP & 0.0025  &1.9e-5 & CBP vs XMI &  -391,970   & 40.52 & $<$ 0.05 \\ 
            OCBP &  0.0028   & 84.1e-5 & CBP vs OCBP &  -1.75 & 21.02 &  0.094 \\ 
-           XMI &  2.0194   & 1.5e-5 & OCBP vs XMI &  -11,245  & 21.01 & $<$ 0.001 \\ 
+           XMI &  2.0194   & 1.5e-5 & OCBP vs XMI &  -11,245  & 21.01 & $<$ 0.05 \\ 
            \hline
        \end{tabular}
        \justify
-       $Mean$ = average, $SD$ = standard deviation, $t$ = t-test's $t$-$value$, $df$ = degree of freedom, $p$-$value$ = significance, the unit is megabytes
+       $Mean$ = average, $SD$ = standard deviation, $t$ = t-test's $t$-$value$, $df$ = degree of freedom, $p$-$value$ = significance, $M$ = the unit is megabytes
    \end{table}
 
-    Here we present the results of measuring the memory footprint after loading models (Table \ref{table:ttest_results_load_memory} and Figure \ref{fig:loadmemory}) and persisting single changes (Table \ref{table:ttest_results_save_memory} and Figure \ref{fig:savememory}) using the models from the three cases. The results show the significant memory overhead of the extra data structure when loading models (all the $means$ of optimised CBP are greater than all the $means$ of original CBP and all comparisons between both CBPs show $p$-$values$ $<$ 0.001, Table \ref{table:ttest_results_load_memory}). Both CBPs are also outperformed by XMI in terms of memory footprint when loading models (all the $means$ of XMI are smaller than all the $means$ of both CBPs and all comparisons against XMIs show all $p$-$values$ $<$ 0.001, Table \ref{table:ttest_results_load_memory}). In loading, XMI uses significantly less memory than the optimised CBP representation and performs slightly better than the original CBP.   
+    Here we present the results of measuring the memory footprint after loading models (Table \ref{table:ttest_results_load_memory} and Figure \ref{fig:loadmemory}) and persisting single changes (Table \ref{table:ttest_results_save_memory} and Figure \ref{fig:savememory}) using the models from the three cases. The results show the significant memory overhead of the extra data structure when loading models (all the $means$ of optimised CBP are greater than all the $means$ of original CBP and all comparisons between both CBPs show $p$-$values$ $<$ 0.05, Table \ref{table:ttest_results_load_memory}). Both CBPs are also outperformed by XMI in terms of memory footprint when loading models (all the $means$ of XMI are smaller than all the $means$ of both CBPs and all comparisons against XMIs show all $p$-$values$ $<$ 0.05, Table \ref{table:ttest_results_load_memory}). In loading, XMI uses significantly less memory than the optimised CBP representation and performs slightly better than the original CBP.   
     
-    In terms of saving, both CBP implementations persist a single change faster than XMI indicated by their $means$ that are smaller than the $means$ of XMI, and all the CBPs' t-tests with XMI show that their differences are significant at $p$-$value$ $<$ 0.001 (Table \ref{table:ttest_results_save_memory}). The optimised CBP has more memory footprint against original CBP since the means of the optimised CBP for all cases are greater than the means of the original CBP. However, their memory footprints are not very different, even though the Epsilon case has a $p$-$value$ $<$ 0.001, other cases shows $p$-$values$ $>$ 0.001 (the $p$-$values$ for BPMN2 and United States cases are 0.004 and 0.094 respectively).   
+    In terms of saving, both CBP implementations persist a single change faster than XMI indicated by their $means$ that are smaller than the $means$ of XMI, and all the CBPs' t-tests with XMI show that their differences are significant at $p$-$value$ $<$ 0.05 (Table \ref{table:ttest_results_save_memory}). The optimised CBP has more memory footprint against original CBP since the means of the optimised CBP for all cases are greater than the means of the original CBP. However, their memory footprints are not very different. Even though the BPMN2 and Epsilon cases have $p$-$values$ $<$ 0.05, the differences of the $means$ of their original and optimised CBPs can be considered small, and the Wikipedia case also shows $p$-$value$ $>$ 0.05 on its original CBP vs optimised CBP comparison.   
    
     \vspace{-15pt}
     \subsection{Threats to Validity and Limitations}
@@ -651,7 +651,7 @@ For reference, we also compare CBP loading with the execution time for loading t
     \label{sec:discussion}
     
     \vspace{-10pt}
-    For the original CBP loading, the total time required to load a model is $T_{CBP}$ = $T_E$ + $T_O$, where $T_E$ is the total time required to complete executing all events, and $T_O$ is the total time needed to complete other required routines (e.g. initialisation, reading files). For the optimised CBP loading, the total time to load a change-based model is reduced by the total time saved-up by ignoring superseded events $T_I$, that is $T_{OCBP}$ = $T_E$ + $T_O$ $-$ $T_I$. Thus, it is expected that optimised CBP can load a model faster than original CBP. This statement is in accordance with our finding in Section \ref{subsec:loading_time_test} that the total saved-up loading time corresponds to the number of ignored events. However, it still requires more investigation to determine the degree of their of correlation, which will be addressed in our future work.
+    For the original CBP loading, the total time required to load a model is $T_{CBP}$ = $T_E$ + $T_O$, where $T_E$ is the total time required to complete executing all events, and $T_O$ is the total time needed to complete other required routines (e.g. initialisation, reading files). For the optimised CBP loading, the total time to load a change-based model is reduced by the total time saved-up by ignoring superseded events $T_I$, that is $T_{OCBP}$ = $T_E$ + $T_O$ $-$ $T_I$. Thus, it is expected that optimised CBP can load a model faster than original CBP. This statement is in accordance with our finding in Section \ref{subsec:loading_time_test} that the total saved-up loading time corresponds to the number of ignored events. However, it still requires more investigation to determine the degree of their correlation, which will be addressed in our future work.
     
     \section{Related Work}
     \label{sec:related_work}
